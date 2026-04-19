@@ -1,6 +1,13 @@
-
-*.pdf
 __pycache__/
 *.pyc
-.env
+*.pyo
+*.pyd
+
+env/
+venv/
+.venv/
+
 docs/
+*.pdf
+
+.env

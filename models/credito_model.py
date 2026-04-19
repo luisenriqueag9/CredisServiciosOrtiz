@@ -12,7 +12,7 @@ def crear_credito(cliente_id, sucursal_id, monto, tasa_interes,
     try:
         cursor = conn.cursor()
 
-        query = """
+        cursor.execute("""
             INSERT INTO creditos (
                 cliente_id,
                 sucursal_id,
@@ -28,9 +28,7 @@ def crear_credito(cliente_id, sucursal_id, monto, tasa_interes,
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id;
-        """
-
-        cursor.execute(query, (
+        """, (
             cliente_id,
             sucursal_id,
             monto,
@@ -48,6 +46,10 @@ def crear_credito(cliente_id, sucursal_id, monto, tasa_interes,
         conn.commit()
         return nuevo_id
 
+    except Exception as e:
+        conn.rollback()
+        raise e
+
     finally:
         conn.close()
 
@@ -57,13 +59,12 @@ def obtener_credito_por_id(credito_id):
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        query = """
+        cursor.execute("""
             SELECT *
             FROM creditos
             WHERE id = %s;
-        """
+        """, (credito_id,))
 
-        cursor.execute(query, (credito_id,))
         return cursor.fetchone()
 
     finally:
@@ -75,83 +76,98 @@ def listar_creditos_activos():
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        query = """
+        cursor.execute("""
             SELECT *
             FROM creditos
             WHERE estado = 'ACTIVO'
             ORDER BY fecha_creacion DESC;
-        """
+        """)
 
-        cursor.execute(query)
         return cursor.fetchall()
 
     finally:
         conn.close()
+
 
 def obtener_credito_activo_cliente(cliente_id):
     conn = obtener_conexion()
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        query = """
+        cursor.execute("""
             SELECT *
             FROM creditos
             WHERE cliente_id = %s
             AND estado = 'ACTIVO'
             LIMIT 1;
-        """
+        """, (cliente_id,))
 
-        cursor.execute(query, (cliente_id,))
         return cursor.fetchone()
+
     finally:
         conn.close()
+
 
 def actualizar_credito_a_refinanciado(credito_id):
     conn = obtener_conexion()
     try:
         cursor = conn.cursor()
 
-        query = """
+        cursor.execute("""
             UPDATE creditos
             SET estado = 'REFINANCIADO',
                 fecha_fin = CURRENT_DATE
             WHERE id = %s;
-        """
+        """, (credito_id,))
 
-        cursor.execute(query, (credito_id,))
         conn.commit()
+
+    except:
+        conn.rollback()
+        raise
+
     finally:
         conn.close()
+
 
 def actualizar_saldo_credito(credito_id, nuevo_saldo):
     conn = obtener_conexion()
     try:
         cursor = conn.cursor()
 
-        query = """
+        cursor.execute("""
             UPDATE creditos
             SET saldo_actual = %s
             WHERE id = %s;
-        """
+        """, (nuevo_saldo, credito_id))
 
-        cursor.execute(query, (nuevo_saldo, credito_id))
         conn.commit()
+
+    except:
+        conn.rollback()
+        raise
+
     finally:
         conn.close()
+
 
 def finalizar_credito(credito_id):
     conn = obtener_conexion()
     try:
         cursor = conn.cursor()
 
-        query = """
+        cursor.execute("""
             UPDATE creditos
             SET estado = 'FINALIZADO',
                 fecha_fin = CURRENT_DATE
             WHERE id = %s;
-        """
+        """, (credito_id,))
 
-        cursor.execute(query, (credito_id,))
         conn.commit()
+
+    except:
+        conn.rollback()
+        raise
+
     finally:
         conn.close()
