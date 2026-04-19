@@ -1,7 +1,7 @@
 from Backend.finance.motor_financiero import MotorFinanciero
 from datetime import datetime
 from Backend.services.guardar_plan import guardar_plan_en_bd
-from Backend.reports.generador_pdf import generar_pdf_plan
+from Backend.reports.old.generador_pdf import generar_pdf_plan
 
 motor = MotorFinanciero()
 

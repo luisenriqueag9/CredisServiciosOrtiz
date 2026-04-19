@@ -4,7 +4,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from models.pago_model import crear_pago, obtener_pago_por_id
-from reports.generador_recibo import generar_recibo_pdf
+from Backend.reports.old.generador_recibo import generar_recibo_pdf
 from datetime import datetime
 
 credito_id = 2

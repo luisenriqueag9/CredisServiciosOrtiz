@@ -1,4 +1,4 @@
-from reports.generador_pdf import generar_pdf_plan
+from Backend.reports.old.generador_pdf import generar_pdf_plan
 
 plan = [
     {

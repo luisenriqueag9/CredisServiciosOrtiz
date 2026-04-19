@@ -4,6 +4,8 @@ from services.plan_service import generar_plan
 from datetime import datetime
 from fpdf import FPDF
 from psycopg2.extras import RealDictCursor
+from reports.utils_pdf import _fmt_money
+from reports.utils_pdf import limpiar_nombre
 
 
 try:
@@ -18,7 +20,7 @@ EMPRESA_DIRECCION     = "Barrio El Centro, Calle Principal"
 EMPRESA_CIUDAD        = "Pespire, Choluteca, Honduras"
 EMPRESA_WHATSAPP      = "+504 9603-9778"
 EMPRESA_CORREO        = "cso.contacto@gmail.com"
-LOGO_PATH             = "assets/logo.png"   # pon tu logo aquí (fondo transparente recomendado)
+LOGO_PATH             = "assets/logo.png"  
 
 OUT_RECIBOS_DIR   = "docs/recibos"
 OUT_PLANES_DIR    = "docs/planes"
@@ -34,14 +36,8 @@ def _cx():
     return obtener_conexion()
 
 # ===================== UTILS =====================
-def _fmt_money(x) -> str:
-    try:
-        return f"L. {float(x):,.2f}"
-    except Exception:
-        return str(x)
 
-def limpiar_nombre(nombre):
-    return nombre.replace(" ", "_").replace("á","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u")
+
 def _obtener_datos_cliente(cliente_id: int):
     con = _cx()
     from psycopg2.extras import RealDictCursor
@@ -380,7 +376,10 @@ def generar_plan_pagos_pdf(plan_id: int) -> str:
     pdf.cell(0, 6, f"Cliente: {nombre} (ID {cliente_id})", ln=1)
     pdf.cell(0, 6, f"DNI: {dni}   Tel: {tel or '-'}", ln=1)
     pdf.cell(0, 6, f"Modalidad: {periodo}   Inicio: {fecha_inicio}", ln=1)
-    pdf.cell(0, 6, f"Monto: {_fmt_money(monto)}   Tasa: {float(tasa):.4f}%   Cuotas: {cuotas}", ln=1)
+    tasa_valor = float(tasa)
+    tasa_formateada = int(tasa_valor) if tasa_valor == int(tasa_valor) else tasa_valor
+
+    pdf.cell(0, 6, f"Monto: {_fmt_money(monto)}   Tasa: {tasa_formateada}%   Cuotas: {cuotas}", ln=1)
     pdf.ln(3)
 
     # Tabla

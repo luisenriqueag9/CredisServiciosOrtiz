@@ -1,20 +1,15 @@
 from fastapi import APIRouter
-from reports.recibo_pdf import generar_recibo_pago
+from reports.pagare_pdf import generar_pagare_pdf
 import os
 
-router = APIRouter(prefix="/recibos", tags=["Recibos"])
+router = APIRouter(prefix="/pagare", tags=["Pagare"])
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-@router.get("/{pago_id}")
-def generar_recibo(pago_id: int):
+@router.get("/{cliente_id}")
+def generar_pagare(cliente_id: int, credito_id: int = None):
 
-    resultado = generar_recibo_pago(pago_id)
-
-    if isinstance(resultado, dict):
-        ruta = resultado["ruta_pdf"]
-    else:
-        ruta = resultado
+    ruta = generar_pagare_pdf(cliente_id, credito_id)
 
     ruta_relativa = os.path.relpath(ruta, BASE_DIR).replace("\\", "/")
 
