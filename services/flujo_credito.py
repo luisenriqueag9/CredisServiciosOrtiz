@@ -4,10 +4,14 @@ from reports.plan_pdf import generar_plan_pagos_pdf
 from models.credito_model import crear_credito, obtener_credito_activo_cliente
 from models.cliente_model import obtener_o_crear_cliente
 from datetime import datetime
+from reports.pagare_pdf import generar_pagare_pdf
+from reports.contrato_pdf import generar_contrato_pdf
 
 def crear_credito_completo(credito, cliente):
 
-    fecha_inicio = credito["fecha_inicio"]
+    fecha_inicio = credito.get("fecha_inicio")
+    if not fecha_inicio:
+        raise ValueError("La fecha de inicio es obligatoria")
 
     if isinstance(fecha_inicio, str):
         fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
@@ -85,5 +89,13 @@ def crear_credito_completo(credito, cliente):
     guardar_plan_en_bd(plan, credito_id)
 
     ruta_pdf = generar_plan_pagos_pdf(credito_id)
+    pagare_pdf = generar_pagare_pdf(cliente_id, credito_id)
+    contrato_pdf = generar_contrato_pdf(cliente_id, credito_id)
 
-    return credito_id, ruta_pdf
+    return {
+        "credito_id": credito_id,
+        "plan_pdf": ruta_pdf.replace("\\", "/"),
+        "pagare_pdf": pagare_pdf.replace("\\", "/"),
+        "contrato_pdf": contrato_pdf.replace("\\", "/")
+    }
+    

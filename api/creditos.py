@@ -12,17 +12,22 @@ def procesar(data: dict):
         credito = data["credito"]
         cliente = data["cliente"]
 
-        credito_id, ruta = crear_credito_completo(credito, cliente)
+        resultado = crear_credito_completo(credito, cliente)
 
-        ruta_relativa = os.path.relpath(ruta, BASE_DIR).replace("\\", "/")
-        url = f"http://127.0.0.1:8000/files/{ruta_relativa}"
+        def build_url(ruta):
+            ruta_rel = os.path.relpath(ruta, BASE_DIR).replace("\\", "/")
+            return f"http://127.0.0.1:8000/files/{ruta_rel}"
 
         return {
             "success": True,
             "data": {
-                "credito_id": credito_id,
-                "pdf": ruta,
-                "url": url
+                "credito_id": resultado["credito_id"],
+                "plan_pdf": resultado["plan_pdf"],
+                "pagare_pdf": resultado["pagare_pdf"],
+                "contrato_pdf": resultado["contrato_pdf"],
+                "plan_url": build_url(resultado["plan_pdf"]),
+                "pagare_url": build_url(resultado["pagare_pdf"]),
+                "contrato_url": build_url(resultado["contrato_pdf"])
             },
             "message": "Crédito procesado correctamente"
         }

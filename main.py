@@ -7,6 +7,7 @@ from api import planes
 from api import creditos
 from api import pagare
 from api import contrato
+from api.pagos import router as pagos_router
 
 app = FastAPI()
 
@@ -19,6 +20,7 @@ app.include_router(planes.router)
 app.include_router(creditos.router)
 app.include_router(pagare.router)
 app.include_router(contrato.router)
+app.include_router(pagos_router)
 
 
 

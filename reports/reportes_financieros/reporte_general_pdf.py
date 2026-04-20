@@ -131,7 +131,7 @@ def obtener_terceros():
 # ========================
 # 🔹 PDF
 # ========================
-def generar_pdf(mes, anio):
+def generar_reporte_general_pdf(mes, anio):
     from datetime import date
 
     fecha_reporte = date(anio, mes, 1)
@@ -347,4 +347,4 @@ if __name__ == "__main__":
     opcion_anio = int(input("\nIngrese opción: "))
     anio = anios[opcion_anio - 1]
 
-    generar_pdf(mes, anio)
+    generar_reporte_general_pdf(mes, anio)

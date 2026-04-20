@@ -44,7 +44,7 @@ def generar_plan_pagos_pdf(plan_id: int) -> str:
         FROM plan_pagos p
         JOIN creditos cr ON cr.id = p.credito_id
         JOIN clientes c ON c.id = cr.cliente_id
-        WHERE p.id = %s
+        WHERE cr.id = %s
     """, (plan_id,))
 
     row = cur.fetchone()
@@ -66,7 +66,7 @@ def generar_plan_pagos_pdf(plan_id: int) -> str:
     con.close()
 
     nombre_archivo = limpiar_nombre(nombre)
-    carpeta = os.path.join("docs/planes", nombre_archivo)
+    carpeta = os.path.join("docs/planes/reales", nombre_archivo)
     os.makedirs(carpeta, exist_ok=True)
 
     ruta = os.path.join(carpeta, f"plan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
@@ -97,12 +97,64 @@ def generar_plan_pagos_pdf(plan_id: int) -> str:
     pdf.set_font("Times", "", 10)
 
     for c in plan:
+        fecha = c["fecha_pago"]
+        if isinstance(fecha, datetime):
+            fecha = fecha.strftime("%d-%m-%Y")
+
         pdf.cell(widths[0], 7, str(c["numero_cuota"]), 1)
-        pdf.cell(widths[1], 7, c["fecha_pago"].strftime("%d-%m-%Y"), 1)
-        pdf.cell(widths[2], 7, f"{c['capital']:.2f}", 1)
-        pdf.cell(widths[3], 7, f"{c['interes']:.2f}", 1)
-        pdf.cell(widths[4], 7, f"{c['cuota']:.2f}", 1)
-        pdf.cell(widths[5], 7, f"{c['saldo']:.2f}", 1)
+        pdf.cell(widths[1], 7, fecha, 1)
+        pdf.cell(widths[2], 7, _fmt_money(c["capital"]), 1)
+        pdf.cell(widths[3], 7, _fmt_money(c["interes"]), 1)
+        pdf.cell(widths[4], 7, _fmt_money(c["cuota"]), 1)
+        pdf.cell(widths[5], 7, _fmt_money(c["saldo"]), 1)
+        pdf.ln()
+
+    pdf.output(ruta)
+
+    return ruta
+def generar_plan_simulado_pdf(monto, tasa, cuotas, fecha_inicio):
+
+    if isinstance(fecha_inicio, str):
+        fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+
+    plan = generar_plan(monto, tasa, cuotas, fecha_inicio)
+
+    carpeta = "docs/planes/simulados"
+    os.makedirs(carpeta, exist_ok=True)
+
+    ruta = os.path.join(carpeta, f"plan_simulado_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
+
+    pdf = _PDFBase("P", "mm", "Letter")
+    pdf.add_page()
+    pdf.set_font("Times", "", 11)
+
+    pdf.cell(0, 6, f"Monto: {_fmt_money(monto)}", ln=1)
+    pdf.cell(0, 6, f"Tasa: {tasa}%", ln=1)
+    pdf.cell(0, 6, f"Cuotas: {cuotas}", ln=1)
+    pdf.ln(5)
+
+    pdf.set_font("Times", "B", 10)
+
+    headers = ["#", "Fecha", "Capital", "Interés", "Cuota", "Saldo"]
+    widths = [10, 30, 30, 30, 30, 30]
+
+    for h, w in zip(headers, widths):
+        pdf.cell(w, 8, h, border=1, align="C")
+    pdf.ln()
+
+    pdf.set_font("Times", "", 10)
+
+    for c in plan:
+        fecha = c["fecha_pago"]
+        if isinstance(fecha, datetime):
+            fecha = fecha.strftime("%d-%m-%Y")
+
+        pdf.cell(widths[0], 7, str(c["numero_cuota"]), 1)
+        pdf.cell(widths[1], 7, fecha, 1)
+        pdf.cell(widths[2], 7, _fmt_money(c["capital"]), 1)
+        pdf.cell(widths[3], 7, _fmt_money(c["interes"]), 1)
+        pdf.cell(widths[4], 7, _fmt_money(c["cuota"]), 1)
+        pdf.cell(widths[5], 7, _fmt_money(c["saldo"]), 1)
         pdf.ln()
 
     pdf.output(ruta)

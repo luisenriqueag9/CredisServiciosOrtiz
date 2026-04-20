@@ -8,4 +8,9 @@ def simular_plan(monto, tasa, cuotas, fecha_inicio):
 
     plan = generar_plan(monto, tasa, cuotas, fecha_inicio)
 
+    for cuota in plan:
+        fecha = cuota["fecha_pago"]
+        if isinstance(fecha, datetime):
+            cuota["fecha_pago"] = fecha.strftime("%d-%m-%Y")
+
     return plan
