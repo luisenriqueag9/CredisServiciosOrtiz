@@ -49,3 +49,65 @@ def procesar(data: dict):
             status_code=500,
             detail=str(e)
         )
+@router.get("/{credito_id}/resumen")
+def resumen_credito(credito_id: int):
+
+    from db.connection import obtener_conexion
+    import psycopg2.extras
+
+    conn = obtener_conexion()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cursor.execute("""
+        SELECT 
+            cr.id,
+            cr.monto,
+            cr.tasa_interes,
+            cr.modalidad_pago,
+            cr.saldo_actual,
+            cr.estado,
+            c.nombre,
+            c.identidad,
+            c.telefono
+        FROM creditos cr
+        JOIN clientes c ON cr.cliente_id = c.id
+        WHERE cr.id = %s
+    """, (credito_id,))
+
+    credito = cursor.fetchone()
+
+    if not credito:
+        conn.close()
+        return {"success": False, "message": "Crédito no encontrado"}
+
+    cursor.execute("""
+        SELECT 
+            COALESCE(SUM(capital_pagado),0) AS capital,
+            COALESCE(SUM(interes_pagado),0) AS interes,
+            COALESCE(SUM(monto_pagado),0) AS total
+        FROM pagos
+        WHERE credito_id = %s
+    """, (credito_id,))
+
+    pagos = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT 
+            COUNT(*) FILTER (WHERE estado = 'PAGADA') AS pagadas,
+            COUNT(*) FILTER (WHERE estado = 'PENDIENTE') AS pendientes
+        FROM plan_pagos
+        WHERE credito_id = %s
+    """, (credito_id,))
+
+    cuotas = cursor.fetchone()
+
+    conn.close()
+
+    return {
+        "success": True,
+        "data": {
+            "credito": credito,
+            "pagos": pagos,
+            "cuotas": cuotas
+        }
+    }

@@ -52,7 +52,7 @@ def obtener_gasto_detalle(gasto_id):
         cursor = conn.cursor()
 
         query = """
-        SELECT concepto, monto, fecha, descripcion, foto_factura
+        SELECT id, concepto, monto, fecha, descripcion, foto_factura
         FROM gastos
         WHERE id = %s
         """

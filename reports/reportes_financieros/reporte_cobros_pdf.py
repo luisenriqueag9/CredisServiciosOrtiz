@@ -11,7 +11,7 @@ from db.connection import obtener_conexion
 from datetime import datetime
 
 
-def obtener_datos_cobros(sucursal_id=None):
+def obtener_datos_cobros(mes, anio, sucursal_id=None):
     conn = obtener_conexion()
     try:
         cursor = conn.cursor()
@@ -27,14 +27,15 @@ def obtener_datos_cobros(sucursal_id=None):
         FROM pagos p
         JOIN creditos cr ON p.credito_id = cr.id
         JOIN clientes c ON cr.cliente_id = c.id
-        WHERE DATE(p.fecha_pago) >= DATE_TRUNC('month', CURRENT_DATE)
+        WHERE EXTRACT(MONTH FROM p.fecha_pago) = %s
+        AND EXTRACT(YEAR FROM p.fecha_pago) = %s
         """
 
         if sucursal_id:
             query += " AND p.sucursal_id = %s"
-            cursor.execute(query, (sucursal_id,))
+            cursor.execute(query, (mes, anio, sucursal_id))
         else:
-            cursor.execute(query)
+            cursor.execute(query, (mes, anio))
 
         rows = cursor.fetchall()
         return rows
@@ -43,7 +44,7 @@ def obtener_datos_cobros(sucursal_id=None):
         conn.close()
 
 
-def obtener_totales(sucursal_id=None):
+def obtener_totales(mes, anio, sucursal_id=None):
     conn = obtener_conexion()
     try:
         cursor = conn.cursor()
@@ -54,14 +55,15 @@ def obtener_totales(sucursal_id=None):
             COALESCE(SUM(interes_pagado),0),
             COALESCE(SUM(monto_pagado),0)
         FROM pagos
-        WHERE DATE(fecha_pago) >= DATE_TRUNC('month', CURRENT_DATE)
+        WHERE EXTRACT(MONTH FROM fecha_pago) = %s
+        AND EXTRACT(YEAR FROM fecha_pago) = %s
         """
 
         if sucursal_id:
             query += " AND sucursal_id = %s"
-            cursor.execute(query, (sucursal_id,))
+            cursor.execute(query, (mes, anio, sucursal_id))
         else:
-            cursor.execute(query)
+            cursor.execute(query, (mes, anio))
 
         return cursor.fetchone()
 
@@ -69,8 +71,11 @@ def obtener_totales(sucursal_id=None):
         conn.close()
 
 
-def generar_pdf(sucursal_id=None):
-    doc = SimpleDocTemplate("reporte_cobros.pdf", pagesize=letter)
+def generar_reporte_cobros_pdf(mes, anio, sucursal_id=None):
+    ruta = f"docs/reportes/reporte_cobros_{mes}_{anio}.pdf"
+    os.makedirs("docs/reportes", exist_ok=True)
+
+    doc = SimpleDocTemplate(ruta, pagesize=letter)
     elements = []
 
     styles = getSampleStyleSheet()
@@ -92,12 +97,12 @@ def generar_pdf(sucursal_id=None):
 
     elements.append(Spacer(1, 20))
 
-    datos = obtener_datos_cobros(sucursal_id)
+    datos = obtener_datos_cobros(mes, anio, sucursal_id)
 
     tabla_data = [
         ["NOMBRE", "CAPITAL", "INTERESES", "TOTAL CUOTA", "SALDO", "FECHA"]
     ]
-
+    total_saldo = 0
     for row in datos:
         tabla_data.append([
             row[0],
@@ -108,16 +113,18 @@ def generar_pdf(sucursal_id=None):
             row[5].strftime('%d/%m/%Y')
         ])
 
-    totales = obtener_totales(sucursal_id)
+        total_saldo += row[4]
+
+    totales = obtener_totales(mes, anio, sucursal_id)
 
     tabla_data.append([
-        "TOTAL",
-        f"L {totales[0]:,.2f}",
-        f"L {totales[1]:,.2f}",
-        f"L {totales[2]:,.2f}",
-        "",
-        ""
-    ])
+    "TOTAL",
+    f"L {totales[0]:,.2f}",
+    f"L {totales[1]:,.2f}",
+    f"L {totales[2]:,.2f}",
+    f"L {total_saldo:,.2f}",
+    ""
+])
 
     table = Table(tabla_data)
 
@@ -142,8 +149,8 @@ def generar_pdf(sucursal_id=None):
 
     doc.build(elements)
 
-    print("PDF generado correctamente")
+    return ruta
 
 
 if __name__ == "__main__":
-    generar_pdf()
+    generar_reporte_cobros_pdf(4, 2026)

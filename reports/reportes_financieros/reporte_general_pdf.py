@@ -15,10 +15,11 @@ from datetime import datetime
 # ========================
 # 🔹 COBROS
 # ========================
-def obtener_cobros():
+def obtener_cobros(mes, anio):
     conn = obtener_conexion()
     try:
         cursor = conn.cursor()
+
         cursor.execute("""
         SELECT 
             c.nombre,
@@ -30,34 +31,38 @@ def obtener_cobros():
         FROM pagos p
         JOIN creditos cr ON p.credito_id = cr.id
         JOIN clientes c ON cr.cliente_id = c.id
-        WHERE DATE(p.fecha_pago) >= DATE_TRUNC('month', CURRENT_DATE)
-        """)
+        WHERE EXTRACT(MONTH FROM p.fecha_pago) = %s
+        AND EXTRACT(YEAR FROM p.fecha_pago) = %s
+        """, (mes, anio))
+
         return cursor.fetchall()
+
     finally:
         conn.close()
-
-
 # ========================
 # 🔹 GASTOS
 # ========================
-def obtener_gastos():
+def obtener_gastos(mes, anio):
     conn = obtener_conexion()
     try:
         cursor = conn.cursor()
+
         cursor.execute("""
         SELECT concepto, monto, fecha
         FROM gastos
-        WHERE DATE(fecha) >= DATE_TRUNC('month', CURRENT_DATE)
-        """)
+        WHERE EXTRACT(MONTH FROM fecha) = %s
+        AND EXTRACT(YEAR FROM fecha) = %s
+        """, (mes, anio))
+
         return cursor.fetchall()
+
     finally:
         conn.close()
-
 
 # ========================
 # 🔹 CREDITOS NUEVOS
 # ========================
-def obtener_creditos_nuevos():
+def obtener_creditos_nuevos(mes, anio):
     conn = obtener_conexion()
     try:
         cursor = conn.cursor()
@@ -65,12 +70,13 @@ def obtener_creditos_nuevos():
         SELECT c.nombre, cr.monto, cr.tasa_interes, cr.fecha_inicio
         FROM creditos cr
         JOIN clientes c ON cr.cliente_id = c.id
-        WHERE DATE(cr.fecha_inicio) >= DATE_TRUNC('month', CURRENT_DATE)
-        """)
+        WHERE EXTRACT(MONTH FROM cr.fecha_inicio) = %s
+        AND EXTRACT(YEAR FROM cr.fecha_inicio) = %s
+        """, (mes, anio))
         return cursor.fetchall()
     finally:
         conn.close()
-def obtener_total_cobros():
+def obtener_total_cobros(mes, anio):
     conn = obtener_conexion()
     try:
         cursor = conn.cursor()
@@ -78,8 +84,9 @@ def obtener_total_cobros():
         cursor.execute("""
         SELECT COALESCE(SUM(capital_pagado + interes_pagado),0)
         FROM pagos
-        WHERE DATE(fecha_pago) >= DATE_TRUNC('month', CURRENT_DATE)
-        """)
+        WHERE EXTRACT(MONTH FROM fecha_pago) = %s
+        AND EXTRACT(YEAR FROM fecha_pago) = %s
+        """, (mes, anio))
 
         return cursor.fetchone()[0]
 
@@ -87,7 +94,7 @@ def obtener_total_cobros():
         conn.close()
 
 
-def obtener_total_gastos():
+def obtener_total_gastos(mes, anio):
     conn = obtener_conexion()
     try:
         cursor = conn.cursor()
@@ -95,8 +102,9 @@ def obtener_total_gastos():
         cursor.execute("""
         SELECT COALESCE(SUM(monto),0)
         FROM gastos
-        WHERE DATE(fecha) >= DATE_TRUNC('month', CURRENT_DATE)
-        """)
+        WHERE EXTRACT(MONTH FROM fecha) = %s
+        AND EXTRACT(YEAR FROM fecha) = %s
+        """, (mes, anio))
 
         return cursor.fetchone()[0]
 
@@ -135,7 +143,7 @@ def generar_reporte_general_pdf(mes, anio):
     from datetime import date
 
     fecha_reporte = date(anio, mes, 1)
-    doc = SimpleDocTemplate("reporte_general.pdf", pagesize=letter)
+    
     elements = []
     styles = getSampleStyleSheet()
 
@@ -148,7 +156,8 @@ def generar_reporte_general_pdf(mes, anio):
 
     elements.append(Spacer(1, 10))
 
-    elements.append(Paragraph("INFORME GENERAL - CREDIS SERVICIOS ORTIZ", styles['Title']))
+    elements.append(Paragraph("CREDIS SERVICIOS ORTIZ", styles['Title']))
+    elements.append(Paragraph("Reporte Financiero General", styles['Heading2']))
     elements.append(Paragraph(f"Periodo: {mes}/{anio}", styles['Normal']))
     elements.append(Spacer(1, 20))
 
@@ -158,10 +167,14 @@ def generar_reporte_general_pdf(mes, anio):
     elements.append(Paragraph("COBROS", styles['Heading2']))
     elements.append(Spacer(1, 10))
 
-    cobros = obtener_cobros()
+    cobros = obtener_cobros(mes, anio)
     tabla = [["NOMBRE", "CAPITAL", "INTERESES", "TOTAL", "SALDO", "FECHA"]]
 
-    total = 0
+    total_capital = 0
+    total_interes = 0
+    total_total = 0
+    total_saldo = 0
+
     for r in cobros:
         tabla.append([
             r[0],
@@ -171,15 +184,29 @@ def generar_reporte_general_pdf(mes, anio):
             f"L {r[4]:,.2f}",
             r[5].strftime('%d/%m/%Y')
         ])
-        total += r[3]
 
-    tabla.append(["TOTAL", "", "", f"L {total:,.2f}", "", ""])
+        total_capital += r[1]
+        total_interes += r[2]
+        total_total += r[3]
+        total_saldo += r[4]
+
+    tabla.append([
+        "TOTAL",
+        f"L {total_capital:,.2f}",
+        f"L {total_interes:,.2f}",
+        f"L {total_total:,.2f}",
+        f"L {total_saldo:,.2f}",
+        ""
+    ])
+       
 
     t = Table(tabla)
     t.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0097A7")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
         ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#E0F7FA")),
+        ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
     ]))
 
     elements.append(t)
@@ -191,7 +218,7 @@ def generar_reporte_general_pdf(mes, anio):
     elements.append(Paragraph("GASTOS", styles['Heading2']))
     elements.append(Spacer(1, 10))
 
-    gastos = obtener_gastos()
+    gastos = obtener_gastos(mes, anio)
     tabla = [["CONCEPTO", "MONTO", "FECHA"]]
 
     total = 0
@@ -204,6 +231,7 @@ def generar_reporte_general_pdf(mes, anio):
         total += r[1]
 
     tabla.append(["TOTAL", f"L {total:,.2f}", ""])
+    
 
     t = Table(tabla)
     t.setStyle(TableStyle([
@@ -221,7 +249,7 @@ def generar_reporte_general_pdf(mes, anio):
     elements.append(Paragraph("CREDITOS NUEVOS", styles['Heading2']))
     elements.append(Spacer(1, 10))
 
-    nuevos = obtener_creditos_nuevos()
+    nuevos = obtener_creditos_nuevos(mes, anio)
     tabla = [["CLIENTE", "MONTO", "TASA", "FECHA"]]
 
     for r in nuevos:
@@ -288,15 +316,15 @@ def generar_reporte_general_pdf(mes, anio):
         elements.append(Paragraph("RESUMEN FINANCIERO", styles['Heading2']))
         elements.append(Spacer(1, 10))
 
-        total_ingresos = obtener_total_cobros()
-        total_gastos = obtener_total_gastos()
+        total_ingresos = obtener_total_cobros(mes, anio)
+        total_gastos = obtener_total_gastos(mes, anio)
         utilidad = total_ingresos - total_gastos
 
         tabla_resumen = [
             ["CONCEPTO", "MONTO"],
             ["TOTAL INGRESOS", f"L {total_ingresos:,.2f}"],
             ["TOTAL GASTOS", f"L {total_gastos:,.2f}"],
-            ["UTILIDAD", f"L {utilidad:,.2f}"]
+            ["UTILIDAD NETA", f"L {utilidad:,.2f}"]
         ]
 
         t_resumen = Table(tabla_resumen)
@@ -318,8 +346,16 @@ def generar_reporte_general_pdf(mes, anio):
         ]))
 
         elements.append(t_resumen)
+    ruta = f"docs/reportes/reporte_general_{mes}_{anio}.pdf"
+    os.makedirs("docs/reportes", exist_ok=True)
+
+    doc = SimpleDocTemplate(ruta, pagesize=letter)
+
     doc.build(elements)
+
     print("REPORTE GENERAL GENERADO")
+
+    return ruta
 
 
 if __name__ == "__main__":
