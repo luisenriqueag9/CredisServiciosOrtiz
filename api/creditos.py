@@ -1,22 +1,37 @@
 from fastapi import APIRouter, HTTPException
 from services.flujo_credito import crear_credito_completo
+from db.connection import obtener_conexion
+import psycopg2.extras
 import os
 
 router = APIRouter(prefix="/creditos", tags=["Creditos"])
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_URL = "http://127.0.0.1:8000/files"
 
+
+# 🔧 Helper para construir URLs públicas
+def build_url(ruta: str):
+    ruta_rel = os.path.relpath(ruta, BASE_DIR).replace("\\", "/")
+    return f"{BASE_URL}/{ruta_rel}"
+
+
+# ==============================
+# 🚀 CREAR CRÉDITO COMPLETO
+# ==============================
 @router.post("/procesar")
-def procesar(data: dict):
+def procesar_credito(data: dict):
     try:
-        credito = data["credito"]
-        cliente = data["cliente"]
+        credito = data.get("credito")
+        cliente = data.get("cliente")
+
+        if not credito or not cliente:
+            raise HTTPException(
+                status_code=400,
+                detail="Debe enviar 'credito' y 'cliente'"
+            )
 
         resultado = crear_credito_completo(credito, cliente)
-
-        def build_url(ruta):
-            ruta_rel = os.path.relpath(ruta, BASE_DIR).replace("\\", "/")
-            return f"http://127.0.0.1:8000/files/{ruta_rel}"
 
         return {
             "success": True,
@@ -32,82 +47,94 @@ def procesar(data: dict):
             "message": "Crédito procesado correctamente"
         }
 
-    except KeyError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Campo faltante: {str(e)}"
-        )
-
-    except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+    except HTTPException:
+        raise
 
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail=f"Error interno: {str(e)}"
         )
+
+
+# ==============================
+# 📊 RESUMEN DE CRÉDITO
+# ==============================
 @router.get("/{credito_id}/resumen")
 def resumen_credito(credito_id: int):
-
-    from db.connection import obtener_conexion
-    import psycopg2.extras
 
     conn = obtener_conexion()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cursor.execute("""
-        SELECT 
-            cr.id,
-            cr.monto,
-            cr.tasa_interes,
-            cr.modalidad_pago,
-            cr.saldo_actual,
-            cr.estado,
-            c.nombre,
-            c.identidad,
-            c.telefono
-        FROM creditos cr
-        JOIN clientes c ON cr.cliente_id = c.id
-        WHERE cr.id = %s
-    """, (credito_id,))
+    try:
+        # 🔹 Datos del crédito + cliente
+        cursor.execute("""
+            SELECT 
+                cr.id,
+                cr.monto,
+                cr.tasa_interes,
+                cr.modalidad_pago,
+                cr.saldo_actual,
+                cr.estado,
+                c.nombre,
+                c.identidad,
+                c.telefono
+            FROM creditos cr
+            JOIN clientes c ON cr.cliente_id = c.id
+            WHERE cr.id = %s
+        """, (credito_id,))
 
-    credito = cursor.fetchone()
+        credito = cursor.fetchone()
 
-    if not credito:
+        if not credito:
+            return {
+                "success": False,
+                "message": "Crédito no encontrado"
+            }
+
+        # 🔹 Totales de pagos
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(capital_pagado),0) AS capital,
+                COALESCE(SUM(interes_pagado),0) AS interes,
+                COALESCE(SUM(monto_pagado),0) AS total
+            FROM pagos
+            WHERE credito_id = %s
+        """, (credito_id,))
+
+        pagos = cursor.fetchone()
+
+        # 🔹 Estado de cuotas
+        cursor.execute("""
+            SELECT 
+                COUNT(*) FILTER (WHERE estado = 'PAGADA') AS pagadas,
+                COUNT(*) FILTER (WHERE estado = 'PENDIENTE') AS pendientes
+            FROM plan_pagos
+            WHERE credito_id = %s
+        """, (credito_id,))
+
+        cuotas = cursor.fetchone()
+
+        return {
+            "success": True,
+            "data": {
+                "credito": credito,
+                "pagos": pagos,
+                "cuotas": cuotas
+            }
+        }
+
+    finally:
         conn.close()
-        return {"success": False, "message": "Crédito no encontrado"}
 
-    cursor.execute("""
-        SELECT 
-            COALESCE(SUM(capital_pagado),0) AS capital,
-            COALESCE(SUM(interes_pagado),0) AS interes,
-            COALESCE(SUM(monto_pagado),0) AS total
-        FROM pagos
-        WHERE credito_id = %s
-    """, (credito_id,))
+@router.get("/")
+def listar_creditos():
 
-    pagos = cursor.fetchone()
+    from models.credito_model import listar_creditos_activos
 
-    cursor.execute("""
-        SELECT 
-            COUNT(*) FILTER (WHERE estado = 'PAGADA') AS pagadas,
-            COUNT(*) FILTER (WHERE estado = 'PENDIENTE') AS pendientes
-        FROM plan_pagos
-        WHERE credito_id = %s
-    """, (credito_id,))
-
-    cuotas = cursor.fetchone()
-
-    conn.close()
+    data = listar_creditos_activos()
 
     return {
         "success": True,
-        "data": {
-            "credito": credito,
-            "pagos": pagos,
-            "cuotas": cuotas
-        }
+        "data": data
     }

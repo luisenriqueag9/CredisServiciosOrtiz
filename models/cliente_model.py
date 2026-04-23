@@ -120,19 +120,28 @@ def actualizar_cliente(cliente_id, datos):
     finally:
         conn.close()
 
-def obtener_o_crear_cliente(nombre, dni, sucursal):
+def obtener_o_crear_cliente(nombre, dni, sucursal, telefono=None, direccion=None):
 
     cliente = obtener_cliente_por_identidad(dni)
 
     if cliente:
+
+        if (direccion and not cliente.get("direccion")) or (telefono and not cliente.get("telefono")):
+            actualizar_cliente(cliente["id"], {
+                "nombre": nombre,
+                "telefono": telefono if telefono else cliente.get("telefono"),
+                "direccion": direccion if direccion else cliente.get("direccion"),
+                "sucursal_id": sucursal
+            })
+
         return cliente["id"]
 
     cliente_id = crear_cliente(
         nombre,
         dni,
-        "",
-        "",
-        1
+        telefono if telefono else "",
+        direccion if direccion else "",
+        sucursal
     )
 
     return cliente_id

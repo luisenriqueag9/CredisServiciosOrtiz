@@ -10,6 +10,13 @@ os.makedirs(OUT_CONTRATOS_DIR, exist_ok=True)
 EMPRESA = "CREDIS SERVICIOS ORTIZ"
 REPRESENTANTE = "WALTHER ORTIZ"
 
+MESES_ES = {
+    "01": "ENERO", "02": "FEBRERO", "03": "MARZO",
+    "04": "ABRIL", "05": "MAYO", "06": "JUNIO",
+    "07": "JULIO", "08": "AGOSTO", "09": "SEPTIEMBRE",
+    "10": "OCTUBRE", "11": "NOVIEMBRE", "12": "DICIEMBRE"
+}
+
 
 def _cx():
     return obtener_conexion()
@@ -44,7 +51,7 @@ class PDFContrato(PDFBase):
     header_title = "CONTRATO DE CRÉDITO"
 
 
-def generar_contrato_pdf(cliente_id, plan_id=None,
+def generar_contrato_pdf(cliente_id, credito_id=None,
                          garantia="PAGARÉ FIRMADO",
                          lugar="PESPIRE", depto="CHOLUTECA",
                          fecha=None):
@@ -64,44 +71,50 @@ def generar_contrato_pdf(cliente_id, plan_id=None,
     dni = cli["identidad"]
     direccion = cli["direccion"]
 
-    garantia_db = None
-    try:
-        con2 = _cx()
-        cur2 = con2.cursor()
-        cur2.execute("SELECT garantia FROM clientes WHERE id=%s", (cliente_id,))
-        rowg = cur2.fetchone()
-        con2.close()
-        if rowg:
-            garantia_db = rowg[0]
-    except:
-        pass
-
-    garantia = garantia or garantia_db or "PAGARÉ FIRMADO"
-
-    if plan_id is not None:
+    
+    monto = 0
+    tasa = 0
+    n_cuotas = 0
+    fecha_inicio = fecha
+    aval_nombre = None
+    aval_dni = None
+    garantia = None
+    
+    if credito_id is not None:
         cur.execute("""
-            SELECT monto, tasa_interes, plazo_numero, fecha_inicio
-            FROM creditos
-            WHERE id = %s
-        """, (plan_id,))
+            SELECT 
+                cr.monto, 
+                cr.tasa_interes, 
+                cr.plazo_numero, 
+                cr.fecha_inicio,
+                a.nombre,
+                a.identidad,
+                cr.garantia
+            FROM creditos cr
+            LEFT JOIN avales a ON cr.aval_id = a.id
+            WHERE cr.id = %s
+        """, (credito_id,))
 
         row = cur.fetchone()
 
         if not row:
             con.close()
-            raise RuntimeError("Plan no encontrado.")
+            raise RuntimeError("Crédito no encontrado.")
 
-        monto = float(row[0] or 0.0)
-        tasa = float(row[1] or 0.0)
-        n_cuotas = int(row[2] or 0)
-        fecha_inicio = row[3]
-        periodo = "mensual"
-    else:
-        monto = 0.0
-        tasa = 0.0
-        n_cuotas = 0
-        fecha_inicio = fecha.strftime("%Y-%m-%d")
-        periodo = "mensual"
+        monto, tasa, n_cuotas, fecha_inicio, aval_nombre, aval_dni, garantia = row
+    
+    if not garantia:
+        garantia = "PAGARÉ FIRMADO"
+    elif not garantia.startswith("PAGARÉ FIRMADO"):
+        garantia = f"PAGARÉ FIRMADO + {garantia}"
+    
+    
+
+    if not aval_nombre or not aval_dni:
+        aval_nombre = "__________________"
+        aval_dni = "__________________"
+
+    periodo = "mensual"
 
     con.close()
 
@@ -118,11 +131,13 @@ def generar_contrato_pdf(cliente_id, plan_id=None,
     pdf.set_font("Times", "", 12)
     lh = 5.3
 
+    mes_es = MESES_ES[fecha.strftime("%m")]
+
     intro = (
         f"En la ciudad de {lugar}, departamento de {depto}, República de Honduras, a los {fecha.day} días "
-        f"del mes de {fecha.strftime('%B').upper()} del año {fecha.year}, comparecen: {EMPRESA}, debidamente "
+        f"del mes de {mes_es} del año {fecha.year}, comparecen: {EMPRESA}, debidamente "
         f"representado por el Sr. {REPRESENTANTE} (en adelante, \"EL ACREEDOR\"); y {nombre}, con identidad "
-        f"{dni}, domiciliado(a) en {direccion or '__________'} (en adelante, \"EL DEUDOR\"). Ambas partes, con "
+        f"{dni}, domiciliado(a) en {direccion if direccion else 'NO ESPECIFICADO'} (en adelante, \"EL DEUDOR\"). Ambas partes, con "
         f"plena capacidad para contratar y obligarse, convienen celebrar el presente Contrato de Crédito Personal, "
         f"que se regirá por las siguientes cláusulas:"
     )
@@ -161,23 +176,56 @@ def generar_contrato_pdf(cliente_id, plan_id=None,
     clausula( "CUARTA: GASTOS Y CARGOS",
         "Todos los impuestos, comisiones bancarias y gastos razonables de cobranza o recuperación generados "
         "por este crédito serán por cuenta del DEUDOR.")
-    clausula("QUINTA: GARANTÍAS",
-        f"Para asegurar el cumplimiento de las obligaciones, EL DEUDOR otorga como garantía: {garantia}. "
-        "De existir aval, éste se constituye en fiador solidario y principal pagador. En caso de "
-        "incumplimiento, EL ACREEDOR podrá hacer efectiva la garantía y exigir el pago total adeudado.")
     
+    clausula("QUINTA: GARANTÍAS Y AVAL",
+    f"Para asegurar el cumplimiento de las obligaciones derivadas del presente contrato, EL DEUDOR otorga como garantía: {garantia}. "
+    f"Asimismo, comparece como AVAL el señor {aval_nombre}, con identidad {aval_dni}, quien se constituye en FIADOR SOLIDARIO, "
+    f"RENUNCIANDO expresamente a los beneficios de excusión, división y orden, obligándose en los mismos términos que el deudor principal. "
+    f"El aval responderá conjunta y solidariamente por el total de la deuda, intereses, gastos, costas y cualquier obligación derivada del presente contrato."
+)
+    # 🔥 FIRMAS CLIENTE Y AVAL (IGUAL QUE PAGARÉ)
+    pdf.ln(8)
+
+    pdf.set_font("Times", "", 10)
+
+    # 🔹 líneas
+    pdf.cell(90, 5, "__________________________________", align="C")
+    pdf.cell(90, 5, "__________________________________", ln=1, align="C")
+
+    # 🔹 nombres
+    pdf.cell(90, 5, nombre, align="C")
+    pdf.cell(90, 5, aval_nombre, ln=1, align="C")
+
+    # 🔹 roles
+    pdf.cell(90, 5, "DEUDOR", align="C")
+    pdf.cell(90, 5, "FIADOR SOLIDARIO", ln=1, align="C")
+
+
+    # 🔥 ESPACIO CONTROLADO
     pdf.ln(10)
 
-    pdf.cell(90, 6, "__________________________", align="C")
-    pdf.cell(90, 6, "__________________________", ln=1, align="C")
 
-    pdf.cell(90, 6, nombre, align="C")
-    pdf.cell(90, 6, "Aval", ln=1, align="C")
+    # 🔥 FIRMA EMPRESA CENTRADA (IGUAL QUE PAGARÉ)
+    pdf.ln(6)
 
-    pdf.ln(10)
+    y_firma = pdf.get_y()
 
-    pdf.cell(0, 6, "__________________________", ln=1, align="C")
-    pdf.cell(0, 6, REPRESENTANTE, ln=1, align="C")
+    pdf.cell(0, 5, "__________________________________", ln=1, align="C")
+    pdf.cell(0, 5, REPRESENTANTE, ln=1, align="C")
+    pdf.cell(0, 5, "REPRESENTANTE LEGAL", ln=1, align="C")
+    pdf.cell(0, 5, EMPRESA, ln=1, align="C")
+
+
+    # 🔥 SELLO A LA PAR (NO ENCIMA)
+    try:
+        pdf.image(
+            "assets/sello.png",
+            x=130,          # mueve izquierda/derecha
+            y=y_firma - 10, # sube/baja alineado con línea
+            w=45            # tamaño del sello
+        )
+    except:
+        pass
 
     pdf.output(ruta)
     return ruta

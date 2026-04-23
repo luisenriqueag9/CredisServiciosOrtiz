@@ -1,4 +1,4 @@
-from services.plan_service import generar_plan
+from services.plan_service import generar_plan, calcular_cuota_francesa
 from services.guardar_plan import guardar_plan_en_bd
 from reports.plan_pdf import generar_plan_pagos_pdf
 from models.credito_model import crear_credito, obtener_credito_activo_cliente
@@ -6,6 +6,9 @@ from models.cliente_model import obtener_o_crear_cliente
 from datetime import datetime
 from reports.pagare_pdf import generar_pagare_pdf
 from reports.contrato_pdf import generar_contrato_pdf
+from models.aval_model import crear_aval
+from models.garantia_model import crear_garantia
+
 
 def crear_credito_completo(credito, cliente):
 
@@ -37,12 +40,32 @@ def crear_credito_completo(credito, cliente):
     if not cliente["dni"]:
         raise ValueError("El DNI es obligatorio")
 
+    tipo_periodo = credito.get("tipo_periodo", "MENSUAL")
+    tipo_plan = credito.get("tipo_plan", "CUOTA_FIJA")
+    garantia = "PAGARÉ FIRMADO"
+
+    # 🔥 CLIENTE
     cliente_id = obtener_o_crear_cliente(
         cliente["nombre"],
         cliente["dni"],
-        cliente["sucursal"]
+        cliente["sucursal"],
+        cliente.get("telefono"),
+        cliente.get("direccion")
     )
 
+    # 🔥 AVAL (CORRECTO)
+    aval_data = credito.get("aval")
+    aval_id = None
+
+    if aval_data:
+        aval_id = crear_aval(
+            aval_data["nombre"],
+            aval_data["identidad"],
+            aval_data.get("telefono"),
+            aval_data.get("direccion")
+        )
+
+    # 🔥 VALIDACIÓN REFINANCIAMIENTO
     credito_activo = obtener_credito_activo_cliente(cliente_id)
 
     if credito_activo:
@@ -57,37 +80,60 @@ def crear_credito_completo(credito, cliente):
             raise ValueError("El cliente solo puede refinanciar si ha pagado al menos el 70% del crédito")
 
         from models.credito_model import actualizar_credito_a_refinanciado
-
         actualizar_credito_a_refinanciado(credito_activo["id"])
 
-    total_con_interes = credito["monto"] + (credito["monto"] * (credito["tasa"] / 100))
     saldo_actual = credito["monto"]
 
+    cuota = calcular_cuota_francesa(
+        credito["monto"],
+        credito["tasa"],
+        credito["cuotas"],
+        tipo_periodo
+    )
+
+    total_con_interes = cuota * credito["cuotas"]
+
+    # 🔥 CREAR CRÉDITO CON AVAL
     credito_id = crear_credito(
         cliente_id,
         1,
         credito["monto"],
         credito["tasa"],
-        "MENSUAL",
-        "CUOTA_FIJA",
+        tipo_periodo,
+        tipo_plan,
         credito["cuotas"],
         fecha_inicio,
         total_con_interes,
-        saldo_actual
+        saldo_actual,
+        aval_id,
+        None,
+        garantia   # 👈 NUEVO
     )
 
+    garantias = credito.get("garantias", [])
+
+    for g in garantias:
+        crear_garantia(
+            credito_id,
+            g.get("tipo"),
+            g.get("descripcion")
+        )
+
+    # 🔥 PLAN DE PAGOS
     plan = generar_plan(
         credito["monto"],
         credito["tasa"],
         credito["cuotas"],
-        fecha_inicio
+        fecha_inicio,
+        tipo_periodo
     )
 
-    for cuota in plan:
-        cuota["estado"] = "PENDIENTE"
+    for c in plan:
+        c["estado"] = "PENDIENTE"
 
     guardar_plan_en_bd(plan, credito_id)
 
+    # 🔥 PDFS
     ruta_pdf = generar_plan_pagos_pdf(credito_id)
     pagare_pdf = generar_pagare_pdf(cliente_id, credito_id)
     contrato_pdf = generar_contrato_pdf(cliente_id, credito_id)
@@ -98,4 +144,3 @@ def crear_credito_completo(credito, cliente):
         "pagare_pdf": pagare_pdf.replace("\\", "/"),
         "contrato_pdf": contrato_pdf.replace("\\", "/")
     }
-    

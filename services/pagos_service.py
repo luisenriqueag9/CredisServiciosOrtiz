@@ -11,7 +11,7 @@ def registrar_pago_inteligente(credito_id: int, monto: float, metodo_pago="EFECT
 
     try:
         cursor.execute("""
-            SELECT saldo_actual, tasa_interes, modalidad_pago, estado
+            SELECT saldo_actual, modalidad_pago, estado
             FROM creditos
             WHERE id = %s
         """, (credito_id,))
@@ -21,17 +21,13 @@ def registrar_pago_inteligente(credito_id: int, monto: float, metodo_pago="EFECT
         if not credito:
             raise Exception("Crédito no encontrado")
 
-        saldo_actual, tasa, modalidad, estado = credito
-        monto = Decimal(str(monto))
-        tasa = Decimal(tasa)
-        saldo_actual = Decimal(saldo_actual)
+        saldo_actual, modalidad, estado = credito
 
         if estado != "ACTIVO":
             raise Exception("El crédito no está activo")
 
-        tasa_decimal = tasa / Decimal(100)
-
-        interes_periodo = (saldo_actual * tasa_decimal).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        monto = Decimal(str(monto))
+        saldo_actual = Decimal(str(saldo_actual))
 
         interes_pagado = Decimal("0.00")
         capital_pagado = Decimal("0.00")
@@ -39,45 +35,42 @@ def registrar_pago_inteligente(credito_id: int, monto: float, metodo_pago="EFECT
 
         if modalidad == "LIBRE":
 
-            if monto < interes_periodo:
-                raise Exception("Debe pagar al menos el interés del período")
+            raise Exception("El plan LIBRE debe manejarse diferente")
 
-            interes_pagado = interes_periodo
-            capital_pagado = monto - interes_pagado
+        cursor.execute("""
+            SELECT id, monto_cuota, interes_programado, capital_programado
+            FROM plan_pagos
+            WHERE credito_id = %s AND estado = 'PENDIENTE'
+            ORDER BY numero_cuota ASC
+            LIMIT 1
+        """, (credito_id,))
 
-        else:
+        cuota = cursor.fetchone()
+
+        if not cuota:
+            raise Exception("No hay cuotas pendientes")
+
+        plan_pago_id, cuota_monto, interes_prog, capital_prog = cuota
+
+        cuota_monto = Decimal(str(cuota_monto))
+        interes_prog = Decimal(str(interes_prog))
+        capital_prog = Decimal(str(capital_prog))
+
+        if monto < interes_prog:
+            raise Exception("El pago no cubre el interés mínimo")
+
+        interes_pagado = interes_prog
+
+        excedente = monto - interes_pagado
+
+        capital_pagado = excedente if excedente <= saldo_actual else saldo_actual
+
+        if monto >= cuota_monto:
             cursor.execute("""
-                SELECT id, monto_cuota, interes_programado, capital_programado
-                FROM plan_pagos
-                WHERE credito_id = %s AND estado = 'PENDIENTE'
-                ORDER BY numero_cuota ASC
-                LIMIT 1
-            """, (credito_id,))
-
-            cuota = cursor.fetchone()
-
-            if not cuota:
-                raise Exception("No hay cuotas pendientes")
-
-            plan_pago_id, cuota_monto, interes_prog, capital_prog = cuota
-
-            cuota_monto = Decimal(cuota_monto)
-            interes_prog = Decimal(interes_prog)
-            capital_prog = Decimal(capital_prog)
-
-            if monto < interes_prog:
-                raise Exception("El pago no cubre el interés mínimo")
-
-            interes_pagado = interes_prog
-            excedente = monto - interes_pagado
-            capital_pagado = excedente if excedente <= saldo_actual else saldo_actual
-
-            if monto >= cuota_monto:
-                cursor.execute("""
-                    UPDATE plan_pagos
-                    SET estado = 'PAGADA'
-                    WHERE id = %s
-                """, (plan_pago_id,))
+                UPDATE plan_pagos
+                SET estado = 'PAGADA'
+                WHERE id = %s
+            """, (plan_pago_id,))
 
         interes_pagado = interes_pagado.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         capital_pagado = capital_pagado.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -132,12 +125,12 @@ def registrar_pago_inteligente(credito_id: int, monto: float, metodo_pago="EFECT
         recibo = generar_recibo_pago(pago_id)
 
         return {
-                "pago_id": pago_id,
-                "interes_pagado": float(interes_pagado),
-                "capital_pagado": float(capital_pagado),
-                "saldo_restante": float(nuevo_saldo),
-                "recibo": recibo
-            }
+            "pago_id": pago_id,
+            "interes_pagado": float(interes_pagado),
+            "capital_pagado": float(capital_pagado),
+            "saldo_restante": float(nuevo_saldo),
+            "recibo": recibo
+        }
 
     except Exception as e:
         conn.rollback()

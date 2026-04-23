@@ -8,22 +8,16 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 @router.get("/{pago_id}")
 def generar_recibo(pago_id: int):
+    try:
+        resultado = generar_recibo_pago(pago_id)
 
-    resultado = generar_recibo_pago(pago_id)
-
-    if isinstance(resultado, dict):
-        ruta = resultado["ruta_pdf"]
-    else:
-        ruta = resultado
-
-    ruta_relativa = os.path.relpath(ruta, BASE_DIR).replace("\\", "/")
-
-    url = f"http://127.0.0.1:8000/files/{ruta_relativa}"
-
-    return {
-        "success": True,
-        "data": {
-            "ruta": ruta,
-            "url": url
+        return {
+            "success": True,
+            "data": resultado
         }
-    }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }

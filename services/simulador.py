@@ -6,7 +6,7 @@ def simular_plan(monto, tasa, cuotas, fecha_inicio):
     if isinstance(fecha_inicio, str):
         fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
 
-    plan = generar_plan(monto, tasa, cuotas, fecha_inicio)
+    plan = generar_plan(monto, tasa, cuotas, fecha_inicio, tipo_periodo)
 
     for cuota in plan:
         fecha = cuota["fecha_pago"]

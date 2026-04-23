@@ -6,7 +6,8 @@ def crear_credito(cliente_id, sucursal_id, monto, tasa_interes,
                    tipo_interes, modalidad_pago,
                    plazo_numero, fecha_inicio,
                    total_con_interes, saldo_actual,
-                   credito_origen_id=None):
+                   aval_id=None, credito_origen_id=None,
+                   garantia=None):
 
     conn = obtener_conexion()
     try:
@@ -24,9 +25,11 @@ def crear_credito(cliente_id, sucursal_id, monto, tasa_interes,
                 fecha_inicio,
                 total_con_interes,
                 saldo_actual,
-                credito_origen_id
+                aval_id,
+                credito_origen_id,
+                garantia
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id;
         """, (
             cliente_id,
@@ -39,8 +42,11 @@ def crear_credito(cliente_id, sucursal_id, monto, tasa_interes,
             fecha_inicio,
             total_con_interes,
             saldo_actual,
-            credito_origen_id
+            aval_id,
+            credito_origen_id,
+            garantia
         ))
+                
 
         nuevo_id = cursor.fetchone()[0]
         conn.commit()
