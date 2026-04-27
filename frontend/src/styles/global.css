@@ -1,0 +1,186 @@
+/* Reset */
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Fondo general */
+.app-container {
+  min-height: 100vh;
+  background: #f8fafc;
+  color: #0f172a; /* 👈 TEXTO OSCURO GLOBAL */
+}
+
+/* Contenido */
+.content {
+  padding: 30px;
+  max-width: 1100px;
+  margin: auto;
+}
+
+/* NAVBAR MODERNO */
+.navbar {
+  background: white;
+  padding: 15px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Logo */
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  height: 40px;
+}
+
+.brand {
+  font-size: 18px;
+  font-weight: bold;
+  color: #0f172a;
+}
+
+/* Links */
+.nav-links a {
+  color: #334155;
+  text-decoration: none;
+  margin-left: 20px;
+  font-weight: 500;
+}
+
+.nav-links a:hover {
+  color: #0ea5e9;
+}
+
+/* CARDS */
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  margin-bottom: 20px;
+}
+
+/* TABLA */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  background: #0ea5e9;
+  color: white;
+  padding: 12px;
+  text-align: left;
+}
+
+td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* INPUTS */
+input {
+  padding: 10px;
+  margin-right: 10px;
+  border: 1px solid #cbd5f5;
+  border-radius: 6px;
+}
+
+button {
+  padding: 10px 16px;
+  background: #0ea5e9;
+  border: none;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+button:hover {
+  background: #0284c7;
+}
+
+/* RESPONSIVE */
+@media (max-width: 600px) {
+  .navbar {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+
+
+form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+form h3 {
+  grid-column: span 2;
+}
+
+form button {
+  grid-column: span 2;
+  width: 200px;
+}
+
+/*para el imput de buscar*/
+
+input[type="text"] {
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 15px;
+}
+
+td button {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+td button:hover {
+  opacity: 0.8;
+}
+
+/* DETALLE DE CLIENTE */
+.detail-card {
+  max-width: 600px;
+  margin: auto;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.detail-grid label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.detail-grid p {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 5px 0 0 0;
+}
+
+/* RESPONSIVE DETALLE */
+@media (max-width: 600px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+tr:hover {
+  background: #f1f5f9;
+}
