@@ -10,6 +10,7 @@ export default function ClienteDetailWrapper() {
   const [creditos, setCreditos] = useState([]);
   const [tipoPeriodo, setTipoPeriodo] = useState("MENSUAL");
   const [tipoPlan, setTipoPlan] = useState("CUOTA_FIJA");
+  const [resumen, setResumen] = useState(null);
 
 
   useEffect(() => {
@@ -19,6 +20,15 @@ export default function ClienteDetailWrapper() {
 
       const creditosData = await obtenerCreditosPorCliente(id);
       setCreditos(creditosData);
+
+      if (creditosData.length > 0) {
+        const res = await fetch(`http://localhost:8000/creditos/${creditosData[0].id}/resumen`);
+        const data = await res.json();
+
+        if (data.success) {
+          setResumen(data.data);
+        }
+      }
     };
 
     fetchData();
@@ -27,7 +37,7 @@ export default function ClienteDetailWrapper() {
   if (!cliente) return <p>Cargando...</p>;
 
   return (
-    <div className="card detail-card">
+    <div className="card">
       <button onClick={() => navigate("/clientes/lista")}>
         ← Volver
       </button>
@@ -62,6 +72,119 @@ export default function ClienteDetailWrapper() {
         </button>
       </div>
 
+      {resumen && (
+        <div className="card" style={{ marginTop: "20px" }}>
+          <h3>Resumen del crédito</h3>
+
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "16px",
+            marginTop: "15px"
+          }}>
+
+            <div style={{
+              background: "#2563eb",
+              color: "white",
+              padding: "18px",
+              borderRadius: "16px"
+            }}>
+              <p style={{ opacity: 0.8 }}>Saldo actual</p>
+              <h2>L {resumen.credito.saldo_actual}</h2>
+            </div>
+
+            <div style={{
+              background: "#10b981",
+              color: "white",
+              padding: "18px",
+              borderRadius: "16px"
+            }}>
+              <p style={{ opacity: 0.8 }}>Total pagado</p>
+              <h2>L {resumen.pagos.total}</h2>
+            </div>
+
+            <div style={{
+              background: "#f59e0b",
+              color: "white",
+              padding: "18px",
+              borderRadius: "16px"
+            }}>
+              <p style={{ opacity: 0.8 }}>Pendiente</p>
+              <h2>L {resumen.credito.saldo_actual}</h2>
+            </div>
+
+            <div style={{
+              background: "#6366f1",
+              color: "white",
+              padding: "18px",
+              borderRadius: "16px"
+            }}>
+              <p style={{ opacity: 0.8 }}>% pagado</p>
+              <h2>
+                {(() => {
+                  const total = resumen.pagos.total + resumen.credito.saldo_actual;
+                  return total > 0
+                    ? ((resumen.pagos.total / total) * 100).toFixed(1)
+                    : 0;
+                })()}%
+              </h2>
+            </div>
+
+          </div>
+        </div>
+
+      )}
+
+
+      <h3 style={{ marginTop: "30px" }}>Documentos</h3>
+
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+        gap: "16px",
+        marginTop: "15px"
+      }}>
+        <div className="card" style={{ textAlign: "center" }}>
+          <div style={{ fontSize: "30px" }}>📄</div>
+          <p>Plan de pagos</p>
+
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+            <button onClick={() => window.open(resumen?.documentos?.plan_url, "_blank")}>
+              Ver
+            </button>
+
+            
+          </div>
+        </div>
+
+        <div className="card" style={{ textAlign: "center" }}>
+          <div style={{ fontSize: "30px" }}>📄</div>
+          <p>Pagaré</p>
+
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+            <button onClick={() => window.open(resumen?.documentos?.pagare_url, "_blank")}>
+              Ver
+            </button>
+
+            
+          </div>
+        </div>
+
+        <div className="card" style={{ textAlign: "center" }}>
+          <div style={{ fontSize: "30px" }}>📄</div>
+          <p>Contrato</p>
+
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+            <button onClick={() => window.open(resumen?.documentos?.contrato_url, "_blank")}>
+              Ver
+            </button>
+
+          
+          </div>
+        </div>
+      </div>
+
       <h3 style={{ marginTop: "30px" }}>Créditos</h3>
 
       <div style={{
@@ -72,11 +195,13 @@ export default function ClienteDetailWrapper() {
       }}>
         <p style={{ margin: 0 }}>Listado de créditos del cliente</p>
 
-        <button
-          onClick={() => navigate(`/creditos/nuevo/${cliente.id}`)}
-        >
-          + Nuevo Crédito
-        </button>
+        {creditos.length === 0 && (
+          <button
+            onClick={() => navigate(`/creditos/nuevo/${cliente.id}`)}
+          >
+            + Nuevo Crédito
+          </button>
+        )}
       </div>
 
       <div className="card" style={{ marginTop: "15px" }}>

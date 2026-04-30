@@ -77,6 +77,7 @@ def resumen_credito(credito_id: int):
                 cr.modalidad_pago,
                 cr.saldo_actual,
                 cr.estado,
+                c.id AS cliente_id,
                 c.nombre,
                 c.identidad,
                 c.telefono
@@ -116,12 +117,30 @@ def resumen_credito(credito_id: int):
 
         cuotas = cursor.fetchone()
 
+        from reports.plan_pdf import generar_plan_pagos_pdf
+        from reports.pagare_pdf import generar_pagare_pdf
+        from reports.contrato_pdf import generar_contrato_pdf
+
+        # Generar PDFs si no existen o reutilizar
+        plan_pdf = generar_plan_pagos_pdf(credito_id)
+        pagare_pdf = generar_pagare_pdf(credito["cliente_id"], credito_id)
+        contrato_pdf = generar_contrato_pdf(credito["cliente_id"], credito_id)
+
+        plan_url = build_url(plan_pdf)
+        pagare_url = build_url(pagare_pdf)
+        contrato_url = build_url(contrato_pdf)
+
         return {
             "success": True,
             "data": {
                 "credito": credito,
                 "pagos": pagos,
-                "cuotas": cuotas
+                "cuotas": cuotas,
+                "documentos": {
+                    "plan_url": plan_url,
+                    "pagare_url": pagare_url,
+                    "contrato_url": contrato_url
+                }
             }
         }
 
