@@ -19,7 +19,6 @@ def crear_aval(nombre, identidad, telefono=None, direccion=None):
     finally:
         conn.close()
 
-
 def obtener_aval_por_id(aval_id):
 
     conn = obtener_conexion()

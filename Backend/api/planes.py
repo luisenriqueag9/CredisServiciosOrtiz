@@ -17,7 +17,8 @@ def simular(data: dict):
         monto = credito.get("monto")
         tasa = credito.get("tasa")
         cuotas = credito.get("cuotas")
-        fecha_inicio = credito.get("fecha_inicio")
+        pago_mensual = credito.get("pago_mensual")
+        tipo_plan = credito.get("tipo_plan")
         tipo_periodo = credito.get("tipo_periodo")
 
         if monto is None or tasa is None or cuotas is None:
@@ -31,7 +32,9 @@ def simular(data: dict):
             tasa,
             cuotas,
             fecha_inicio,
-            tipo_periodo
+            tipo_periodo,
+            tipo_plan,
+            pago_mensual
         )
 
         return {
@@ -58,6 +61,7 @@ def simular_pdf(data: dict):
         monto = credito.get("monto")
         tasa = credito.get("tasa")
         cuotas = credito.get("cuotas")
+        pago_mensual = credito.get("pago_mensual")
         fecha_inicio = credito.get("fecha_inicio")
 
         if monto is None or tasa is None or cuotas is None:
@@ -99,11 +103,12 @@ def simular_resumen(data: dict):
         monto = credito.get("monto")
         tasa = credito.get("tasa")
         cuotas = credito.get("cuotas")
+        pago_mensual = credito.get("pago_mensual")
         tipo_plan = credito.get("tipo_plan")
         tipo_periodo = credito.get("tipo_periodo")
 
-        if monto is None or tasa is None or cuotas is None:
-            raise ValueError("Datos incompletos para simular resumen")
+        if monto is None or tasa is None:
+            raise ValueError("Monto y tasa son obligatorios")
 
         if not tipo_plan:
             raise ValueError("Debe indicar el tipo de plan")
@@ -114,8 +119,10 @@ def simular_resumen(data: dict):
         resumen = calcular_resumen(
             monto,
             tasa,
-            cuotas,
-            tipo_plan
+            cuotas if tipo_plan == "CUOTA_FIJA" else None,
+            tipo_plan,
+            tipo_periodo,
+            pago_mensual if tipo_plan == "CAPITAL_FIJO" else None
         )
 
         return {

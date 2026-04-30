@@ -68,7 +68,9 @@ def generar_plan_pagos_pdf(plan_id: int) -> str:
         float(tasa),
         int(cuotas),
         fecha_inicio,
-        tipo_periodo
+        tipo_periodo,
+        modalidad,   # 👈 este es tipo_plan
+        None         # 👈 pago_mensual 
     )
 
     con.close()
@@ -133,7 +135,15 @@ def generar_plan_simulado_pdf(monto, tasa, cuotas, fecha_inicio):
     if isinstance(fecha_inicio, str):
         fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
 
-    plan = generar_plan(monto, tasa, cuotas, fecha_inicio, "MENSUAL")
+    plan = generar_plan(
+        monto,
+        tasa,
+        cuotas,
+        fecha_inicio,
+        "MENSUAL",
+        "CUOTA_FIJA",  
+        None
+    )
 
     carpeta = "docs/planes/simulados"
     os.makedirs(carpeta, exist_ok=True)

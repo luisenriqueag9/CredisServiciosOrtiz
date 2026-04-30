@@ -81,6 +81,21 @@ def generar_contrato_pdf(cliente_id, credito_id=None,
     garantia = None
     
     if credito_id is not None:
+
+        cur.execute("""
+        SELECT tipo, descripcion
+        FROM garantias
+        WHERE credito_id = %s
+        """, (credito_id,))
+
+        garantias = cur.fetchall()
+
+        if garantias:
+            garantia_texto = "PAGARÉ FIRMADO + " + ", ".join(
+                [f"{g[0]} ({g[1]})" for g in garantias]
+            )
+        else:
+            garantia_texto = "PAGARÉ FIRMADO"
         cur.execute("""
             SELECT 
                 cr.monto, 
@@ -103,10 +118,7 @@ def generar_contrato_pdf(cliente_id, credito_id=None,
 
         monto, tasa, n_cuotas, fecha_inicio, aval_nombre, aval_dni, garantia = row
     
-    if not garantia:
-        garantia = "PAGARÉ FIRMADO"
-    elif not garantia.startswith("PAGARÉ FIRMADO"):
-        garantia = f"PAGARÉ FIRMADO + {garantia}"
+    garantia = garantia_texto if credito_id else "PAGARÉ FIRMADO"
     
     
 

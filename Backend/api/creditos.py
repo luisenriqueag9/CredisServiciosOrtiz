@@ -51,6 +51,7 @@ def procesar_credito(data: dict):
         raise
 
     except Exception as e:
+        print("🔥 ERROR BACKEND:", str(e)) 
         raise HTTPException(
             status_code=500,
             detail=f"Error interno: {str(e)}"
@@ -138,3 +139,34 @@ def listar_creditos():
         "success": True,
         "data": data
     }
+
+@router.get("/cliente/{cliente_id}")
+def obtener_creditos_por_cliente(cliente_id: int):
+
+    conn = obtener_conexion()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    try:
+        cursor.execute("""
+            SELECT 
+                id,
+                monto,
+                tasa_interes,
+                plazo_numero AS cuotas,
+                saldo_actual,
+                estado,
+                fecha_inicio
+            FROM creditos
+            WHERE cliente_id = %s
+            ORDER BY id DESC
+        """, (cliente_id,))
+
+        data = cursor.fetchall()
+
+        return {
+            "success": True,
+            "data": data
+        }
+
+    finally:
+        conn.close()

@@ -1,4 +1,7 @@
-const API_URL = "http://localhost:8000/clientes";
+
+const API_BASE = "http://localhost:8000";
+
+const API_URL = `${API_BASE}/clientes`;
 
 // Obtener todos los clientes
 export const getClientes = async () => {
@@ -68,5 +71,16 @@ export const updateCliente = async (id, cliente) => {
   } catch (error) {
     console.error("Error actualizando cliente:", error);
     return null;
+  }
+};
+
+export const obtenerCreditosPorCliente = async (clienteId) => {
+  try {
+    const res = await fetch(`${API_BASE}/creditos/cliente/${clienteId}`);
+    const data = await res.json();
+    return data.data;
+  } catch (error) {
+    console.error("Error obteniendo créditos:", error);
+    return [];
   }
 };

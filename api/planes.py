@@ -6,6 +6,9 @@ from services.plan_service import calcular_resumen
 router = APIRouter(prefix="/planes", tags=["Planes"])
 
 
+# ==============================
+# 📊 SIMULAR PLAN (TABLA)
+# ==============================
 @router.post("/simular")
 def simular(data: dict):
     try:
@@ -20,6 +23,7 @@ def simular(data: dict):
         fecha_inicio = credito.get("fecha_inicio")
         tipo_periodo = credito.get("tipo_periodo")
 
+        # 🔥 VALIDACIÓN SIMPLE (NO COMPLEJA AÚN)
         if monto is None or tasa is None or cuotas is None:
             raise ValueError("Datos incompletos para simular el plan")
 
@@ -47,6 +51,9 @@ def simular(data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==============================
+# 📄 GENERAR PDF SIMULADO
+# ==============================
 @router.post("/simular/pdf")
 def simular_pdf(data: dict):
     try:
@@ -88,6 +95,9 @@ def simular_pdf(data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==============================
+# 📊 RESUMEN INTELIGENTE
+# ==============================
 @router.post("/simular-resumen")
 def simular_resumen(data: dict):
     try:
@@ -101,9 +111,11 @@ def simular_resumen(data: dict):
         cuotas = credito.get("cuotas")
         tipo_plan = credito.get("tipo_plan")
         tipo_periodo = credito.get("tipo_periodo")
+        pago_mensual = credito.get("pago_mensual")
 
-        if monto is None or tasa is None or cuotas is None:
-            raise ValueError("Datos incompletos para simular resumen")
+        # 🔥 VALIDACIONES CORRECTAS
+        if monto is None or tasa is None:
+            raise ValueError("Monto y tasa son obligatorios")
 
         if not tipo_plan:
             raise ValueError("Debe indicar el tipo de plan")
@@ -111,11 +123,31 @@ def simular_resumen(data: dict):
         if not tipo_periodo:
             raise ValueError("Debe indicar el tipo de periodo")
 
+        if tipo_plan == "CUOTA_FIJA" and cuotas is None:
+            raise ValueError("Debe indicar cuotas para cuota fija")
+
+        if tipo_plan == "CAPITAL_FIJO" and not pago_mensual:
+            raise ValueError("Debe indicar el pago mensual")
+
+        # 🔥 CAPITAL FIJO DINÁMICO
+        if tipo_plan == "CAPITAL_FIJO":
+
+            from services.plan_service import calcular_cuotas_por_pago
+
+            cuotas = calcular_cuotas_por_pago(
+                monto,
+                tasa,
+                pago_mensual
+            )
+
+        # 🔥 RESUMEN FINAL
         resumen = calcular_resumen(
             monto,
             tasa,
             cuotas,
-            tipo_plan
+            tipo_plan,
+            tipo_periodo,
+            pago_mensual   
         )
 
         return {

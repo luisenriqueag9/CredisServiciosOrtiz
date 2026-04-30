@@ -48,7 +48,7 @@ export function ClienteFormWrapper() {
 
       <h2>Crear Cliente</h2>
 
-      <ClienteForm onClienteCreado={() => {}} />
+      <ClienteForm onClienteCreado={() => navigate("/clientes/lista")} />
     </div>
   );
 }

@@ -1,24 +1,27 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getClienteById } from "../services/clienteService";
+import { obtenerCreditosPorCliente } from "../services/clienteService";
 
 export default function ClienteDetailWrapper() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [cliente, setCliente] = useState(null);
   const [creditos, setCreditos] = useState([]);
+  const [tipoPeriodo, setTipoPeriodo] = useState("MENSUAL");
+  const [tipoPlan, setTipoPlan] = useState("CUOTA_FIJA");
+
 
   useEffect(() => {
-    const fetchCliente = async () => {
-      const data = await getClienteById(id);
-      setCliente(data);
+    const fetchData = async () => {
+      const clienteData = await getClienteById(id);
+      setCliente(clienteData);
+
+      const creditosData = await obtenerCreditosPorCliente(id);
+      setCreditos(creditosData);
     };
 
-    fetchCliente();
-  }, [id]);
-
-  useEffect(() => {
-    setCreditos([]);
+    fetchData();
   }, [id]);
 
   if (!cliente) return <p>Cargando...</p>;
@@ -61,20 +64,44 @@ export default function ClienteDetailWrapper() {
 
       <h3 style={{ marginTop: "30px" }}>Créditos</h3>
 
-      <div className="card" style={{ marginTop: "10px" }}>
-        <ul>
-          {creditos.map((c) => (
-            <li key={c.id}>
-              Crédito #{c.id} - L {c.monto}
-            </li>
-          ))}
-        </ul>
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginTop: "10px"
+      }}>
+        <p style={{ margin: 0 }}>Listado de créditos del cliente</p>
 
         <button
           onClick={() => navigate(`/creditos/nuevo/${cliente.id}`)}
         >
           + Nuevo Crédito
         </button>
+      </div>
+
+      <div className="card" style={{ marginTop: "15px" }}>
+        <table style={{ width: "100%" }}>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Monto</th>
+              <th>Cuotas</th>
+              <th>Saldo</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {creditos.map((c) => (
+              <tr key={c.id}>
+                <td>{c.id}</td>
+                <td>L {c.monto}</td>
+                <td>{c.cuotas}</td>
+                <td>L {c.saldo_actual}</td>
+                <td>{c.estado}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
