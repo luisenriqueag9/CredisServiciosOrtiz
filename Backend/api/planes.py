@@ -20,6 +20,7 @@ def simular(data: dict):
         pago_mensual = credito.get("pago_mensual")
         tipo_plan = credito.get("tipo_plan")
         tipo_periodo = credito.get("tipo_periodo")
+        fecha_inicio = credito.get("fecha_inicio")
 
         if monto is None or tasa is None or cuotas is None:
             raise ValueError("Datos incompletos para simular el plan")

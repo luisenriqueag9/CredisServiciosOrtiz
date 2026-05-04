@@ -77,23 +77,45 @@ def obtener_credito_por_id(credito_id):
         conn.close()
 
 
-def listar_creditos_activos():
+def listar_creditos_activos(desde=None, estado=None):
+
     conn = obtener_conexion()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
     try:
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        query = """
+            SELECT 
+                cr.id,
+                cr.monto,
+                cr.saldo_actual,
+                cr.estado,
+                c.nombre AS cliente_nombre,
+                cr.fecha_inicio
+            FROM creditos cr
+            JOIN clientes c ON c.id = cr.cliente_id
+        """
 
-        cursor.execute("""
-            SELECT *
-            FROM creditos
-            WHERE estado = 'ACTIVO'
-            ORDER BY fecha_creacion DESC;
-        """)
+        conditions = []
+        params = []
 
+        if desde:
+            conditions.append("cr.fecha_inicio >= %s")
+            params.append(desde)
+
+        if estado:
+            conditions.append("cr.estado = %s")
+            params.append(estado)
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += " ORDER BY cr.id DESC"
+
+        cursor.execute(query, params)
         return cursor.fetchall()
 
     finally:
         conn.close()
-
 
 def obtener_credito_activo_cliente(cliente_id):
     conn = obtener_conexion()

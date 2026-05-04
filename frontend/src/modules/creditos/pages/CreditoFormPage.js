@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { getClienteById } from "../services/clienteService";
+import { getClienteById } from "../../clientes/services/clienteService";
 import React, { useEffect, useState } from "react";
 
 
