@@ -1,7 +1,7 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, Outlet } from "react-router-dom";
 
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout() {
   const location = useLocation();
 
   const isActive = (path) =>
@@ -73,6 +73,32 @@ export default function DashboardLayout({ children }) {
             💵 Pagos
           </Link>
 
+          <Link
+            to="/gastos"
+            style={{
+              color: "white",
+              textDecoration: "none",
+              background: isActive("/gastos") ? "#1f2937" : "transparent",
+              padding: "8px",
+              borderRadius: "6px"
+            }}
+          >
+            💸 Gastos
+          </Link>
+
+          <Link
+            to="/reportes"
+            style={{
+              color: "white",
+              textDecoration: "none",
+              background: isActive("/reportes") ? "#1f2937" : "transparent",
+              padding: "8px",
+              borderRadius: "6px"
+            }}
+          >
+            📊 Reportes
+          </Link>
+
         </nav>
       </div>
 
@@ -98,7 +124,7 @@ export default function DashboardLayout({ children }) {
 
         {/* CONTENIDO REAL */}
         <div style={{ padding: "30px" }}>
-          {children}
+          <Outlet />
         </div>
 
       </div>
